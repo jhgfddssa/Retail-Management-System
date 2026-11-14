@@ -114,6 +114,46 @@ npm run dev
 
 Open the local Vite URL printed by the command (normally `http://localhost:5173`). Vite proxies `/api` to `http://localhost:8080` during development.
 
+## Cloud deployment preparation
+
+The repository includes a root-context Java 25 multi-stage [Dockerfile](Dockerfile), a [.dockerignore](.dockerignore) that excludes local environment files and generated content, and a [Vercel configuration](frontend/vercel.mjs) for same-origin API proxying. No cloud resources are created by this repository configuration.
+
+### Render backend
+
+Create a Render **Web Service** from this repository with these settings:
+
+| Setting | Value |
+|---|---|
+| Runtime | Docker |
+| Root Directory | Leave unset (repository root) |
+| Dockerfile Path | `./Dockerfile` |
+| Docker Build Context | `.` (repository root) |
+| Docker Command | Leave blank; use the Dockerfile entry point |
+| Health Check Path | `/api/v1/health` |
+| Port | Set `PORT` to Render's web-service port, normally `10000` |
+
+Configure the Render service and managed PostgreSQL in the same region. Set `DATABASE_URL` to a JDBC URL built from the database's **internal** host and database name, for example `jdbc:postgresql://<internal-host>:5432/<database>?sslmode=require`; the Render dashboard's `postgres://` URI is not itself a JDBC URL. Set the username and password as separate environment variables. For a database outside Render, use its external hostname and require TLS with `sslmode=require`.
+
+For a new, empty database, set `ADMIN_PASSWORD` to a unique random value of at least 12 characters (20+ recommended) before the first start. Bootstrap creates the initial administrator only if the users table is empty; it does not rotate an existing account. Flyway applies migrations during application startup, and Hibernate validates the migrated schema. Do not configure Hibernate schema updates.
+
+The public health endpoint checks `SELECT 1` against PostgreSQL, so Render marks the service unhealthy if the database becomes unavailable. The endpoint is unauthenticated for platform probes and returns no connection details.
+
+### Vercel frontend
+
+Create a Vercel project connected to this repository with these settings:
+
+| Setting | Value |
+|---|---|
+| Root Directory | `frontend` |
+| Framework Preset | Vite |
+| Install Command | `npm ci` |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
+
+Set `RENDER_BACKEND_URL` in the Vercel build environment to the HTTPS origin of the Render backend (origin only; no path or trailing slash). The Vercel config forwards `/api/*` requests to that backend and serves other routes from the Vite SPA. The browser continues to request relative `/api` URLs, so production requests remain same-origin and do not require permissive CORS. Local Vite development continues to proxy `/api` to `http://localhost:8080`.
+
+The backend does not currently configure CORS for direct cross-origin browser access. Use the Vercel proxy path for the frontend; if a future client calls the Render origin directly from a browser, configure a narrow origin allowlist first.
+
 ## Tests and production build
 
 Backend tests (Java 25):
