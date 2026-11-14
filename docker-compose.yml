@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-retail}
+      POSTGRES_USER: ${DATABASE_USERNAME:-retail}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in the repository-root .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - retail-postgres:/var/lib/postgresql
+volumes:
+  retail-postgres:
+

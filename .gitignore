@@ -1,0 +1,13 @@
+# Local environment files and secrets (at any project depth).
+**/.env
+**/.env.*
+# Keep only explicitly named environment templates eligible for Git.
+!.env.example
+!**/.env.example
+node_modules/
+dist/
+target/
+*.log
+.idea/
+.vscode/
+.DS_Store
